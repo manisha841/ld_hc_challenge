@@ -1,10 +1,10 @@
 {
     "1": {
         "id": 1,
-        "name": "string",
-        "description": "string",
-        "owner_id": "string",
-        "price": 0.0
+        "name": "oragne",
+        "description": "orange",
+        "owner_id": "user1",
+        "price": 10.0
     },
     "2": {
         "id": 2,

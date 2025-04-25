@@ -11,7 +11,9 @@ class ItemService:
         return items.get(str(item_id))
 
     @staticmethod
-    def update_item(item_id: int, item_data: ItemUpdate, owner_id: str) -> Dict:
+    def update_item(
+        item_id: int, item_data: ItemUpdate, owner_id: str, is_m2m: bool = False
+    ) -> Dict:
         items = load_items()
         item_key = str(item_id)
 
@@ -20,7 +22,7 @@ class ItemService:
 
         existing_item = items[item_key]
 
-        if existing_item["owner_id"] != owner_id:
+        if not is_m2m and existing_item["owner_id"] != owner_id:
             raise HTTPException(status_code=403, detail="Not enough permissions")
 
         updates = {}

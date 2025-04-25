@@ -38,12 +38,22 @@ async def update_item(
     if not existing_item:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    print(
-        "has access",
-        _has_access(current_user, existing_item["owner_id"], "update:items"),
-    )
+    # Check if this is an M2M login
+    is_m2m = current_user.get("gty") == "client-credentials"
 
-    if not _has_access(current_user, existing_item["owner_id"], "update:items"):
+    # For M2M, check permissions directly
+    if is_m2m and "update:items" not in current_user.get("permissions", []):
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    return ItemService.update_item(item_id, item_data, current_user.get("sub"))
+    # For regular users, check ownership
+    if not is_m2m and not _has_access(
+        current_user, existing_item["owner_id"], "update:items"
+    ):
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+
+    return ItemService.update_item(
+        item_id=item_id,
+        item_data=item_data,
+        owner_id=current_user.get("sub"),
+        is_m2m=is_m2m,
+    )
