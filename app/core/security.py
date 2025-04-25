@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import datetime, timedelta
-from fastapi import HTTPException, Security
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import HTTPException, Depends, Request
+from fastapi.security import HTTPBearer
 import jwt
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
@@ -10,6 +10,7 @@ from app.core.config import settings
 security = HTTPBearer()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# JWT settings
 SECRET_KEY = "secret-key-here"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -34,11 +35,19 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
-def verify_token(
-    credentials: HTTPAuthorizationCredentials = Security(security),
-) -> dict:
+async def get_token(request: Request) -> str:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return auth_header.split(" ")[1]
+
+
+async def get_current_user(token: str = Depends(get_token)) -> dict:
     try:
-        token = credentials.credentials
         payload = jwt.decode(
             token,
             SECRET_KEY,
@@ -53,31 +62,30 @@ def verify_token(
         )
 
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Security(security),
-) -> dict:
-    payload = verify_token(credentials)
-    return payload
-
-
-def check_m2m_permissions(
-    credentials: HTTPAuthorizationCredentials = Security(security),
-    required_permission: str = None,
+async def check_m2m_permissions(
+    token: str = Depends(get_token), required_permission: str = None
 ) -> bool:
-    payload = verify_token(credentials)
+    try:
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+        )
 
-    if "gty" not in payload or payload["gty"] != "client-credentials":
+        if "gty" not in payload or payload["gty"] != "client-credentials":
+            return False
+
+        client_id = payload.get("azp")
+        if not client_id:
+            return False
+
+        m2m_app = settings.M2M_APPLICATIONS.get(client_id)
+        if not m2m_app:
+            return False
+
+        if required_permission and required_permission not in m2m_app["permissions"]:
+            return False
+
+        return True
+    except InvalidTokenError:
         return False
-
-    client_id = payload.get("azp")
-    if not client_id:
-        return False
-
-    m2m_app = settings.M2M_APPLICATIONS.get(client_id)
-    if not m2m_app:
-        return False
-
-    if required_permission and required_permission not in m2m_app["permissions"]:
-        return False
-
-    return True
