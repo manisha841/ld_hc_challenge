@@ -1,13 +1,13 @@
 from typing import Optional
 from datetime import datetime, timedelta
-from fastapi import HTTPException, Depends, Request
-from fastapi.security import HTTPBearer
+from fastapi import HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 from app.core.config import settings
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT settings
@@ -35,15 +35,16 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
-async def get_token(request: Request) -> str:
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
+async def get_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> str:
+    if not credentials:
         raise HTTPException(
             status_code=401,
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return auth_header.split(" ")[1]
+    return credentials.credentials
 
 
 async def get_current_user(token: str = Depends(get_token)) -> dict:

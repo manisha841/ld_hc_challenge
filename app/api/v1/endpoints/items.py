@@ -12,13 +12,10 @@ async def read_item(item_id: int, current_user: dict = Depends(get_current_user)
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    print("current_user", current_user.get("sub"))
-    print("item.owner_id", item.owner_id)
     # Check if user owns the item or if it's an M2M app with read permission
-    # if item.owner_id != current_user.get("sub") and not await check_m2m_permissions(required_permission="read:items"):
-    #     raise HTTPException(status_code=403, detail="Not enough permissions")
-
-    if not await check_m2m_permissions(required_permission="read:items"):
+    if item.owner_id != current_user.get("sub") or not await check_m2m_permissions(
+        required_permission="read:items"
+    ):
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     return item
@@ -28,6 +25,7 @@ async def read_item(item_id: int, current_user: dict = Depends(get_current_user)
 async def update_item(
     item_id: int, item: ItemUpdate, current_user: dict = Depends(get_current_user)
 ):
+    # Only allow owners to update items
     if not await check_m2m_permissions(required_permission="update:items"):
         return ItemService.update_item(item_id, item, current_user.get("sub"))
 
