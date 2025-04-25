@@ -1,9 +1,8 @@
-from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 
@@ -19,5 +18,5 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    sub: Optional[str] = None
-    scopes: list[str] = []
+    sub: str | None = None
+    scopes: list[str] | None = []

@@ -38,7 +38,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 async def get_token(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> str:
-    print("credentials", credentials)
     if not credentials:
         raise HTTPException(
             status_code=401,
