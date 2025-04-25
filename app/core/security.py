@@ -38,6 +38,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 async def get_token(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> str:
+    print("credentials", credentials)
     if not credentials:
         raise HTTPException(
             status_code=401,
@@ -49,6 +50,7 @@ async def get_token(
 
 async def get_current_user(token: str = Depends(get_token)) -> dict:
     try:
+        print("token payload", token)
         payload = jwt.decode(
             token,
             SECRET_KEY,
