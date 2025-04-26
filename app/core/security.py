@@ -5,7 +5,6 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
-from app.core.config import settings
 
 security = HTTPBearer(auto_error=False)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -49,7 +48,6 @@ async def get_token(
 
 async def get_current_user(token: str = Depends(get_token)) -> dict:
     try:
-        print("token payload", token)
         payload = jwt.decode(
             token,
             SECRET_KEY,
@@ -64,30 +62,14 @@ async def get_current_user(token: str = Depends(get_token)) -> dict:
         )
 
 
-async def check_m2m_permissions(
-    token: str = Depends(get_token), required_permission: str = None
-) -> bool:
-    try:
-        payload = jwt.decode(
-            token,
-            SECRET_KEY,
-            algorithms=[ALGORITHM],
-        )
+def check_permissions(
+    current_user: dict, item_owner_id: str, required_permission: str
+) -> None:
+    """Check if user has required permissions or is the item owner."""
+    is_m2m = current_user.get("gty") == "client-credentials"
 
-        if "gty" not in payload or payload["gty"] != "client-credentials":
-            return False
-
-        client_id = payload.get("azp")
-        if not client_id:
-            return False
-
-        m2m_app = settings.M2M_APPLICATIONS.get(client_id)
-        if not m2m_app:
-            return False
-
-        if required_permission and required_permission not in m2m_app["permissions"]:
-            return False
-
-        return True
-    except InvalidTokenError:
-        return False
+    if is_m2m:
+        if required_permission not in current_user.get("permissions", []):
+            raise HTTPException(status_code=403, detail="Not enough permissions")
+    elif item_owner_id != current_user.get("sub"):
+        raise HTTPException(status_code=403, detail="Not enough permissions")
