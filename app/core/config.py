@@ -22,6 +22,23 @@ class Settings(BaseSettings):
             "client_secret": "mock_client_secret_2",
             "permissions": ["read:items", "update:items"],
         },
+        "app3": {
+            "app_id": "app3",
+            "client_id": "mock_client_id_3",
+            "client_secret": "mock_client_secret_3",
+            "permissions": ["read:items", "update:items", "create:items"],
+        },
+        "app4": {
+            "app_id": "app4",
+            "client_id": "mock_client_id_4",
+            "client_secret": "mock_client_secret_4",
+            "permissions": [
+                "read:items",
+                "update:items",
+                "create:items",
+                "delete:items",
+            ],
+        },
     }
 
     class Config:

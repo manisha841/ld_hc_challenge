@@ -9,6 +9,13 @@ class Item(BaseModel):
     price: float
 
 
+class ItemCreate(BaseModel):
+    name: str
+    owner_id: str
+    description: str | None = None
+    price: float
+
+
 class ItemUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
