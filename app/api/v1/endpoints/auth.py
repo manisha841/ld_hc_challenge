@@ -1,6 +1,7 @@
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from httpx import AsyncClient
 from app.core.security import (
     create_access_token,
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -33,31 +34,26 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 @router.post("/m2m/login")
 async def m2m_login(m2m_data: M2MLogin):
-    m2m_app = None
-    for _, app_data in settings.M2M_APPLICATIONS.items():
-        if (
-            app_data["app_id"] == m2m_data.app_id
-            and app_data["client_id"] == m2m_data.client_id
-            and app_data["client_secret"] == m2m_data.client_secret
-        ):
-            m2m_app = app_data
-            break
+    app_config = settings.M2M_APPLICATIONS.get(m2m_data.app_id)
+    if not app_config:
+        raise HTTPException(status_code=400, detail="Invalid application ID")
 
-    if not m2m_app:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid client credentials",
-            headers={"WWW-Authenticate": "Bearer"},
+    async with AsyncClient() as client:
+        payload = {
+            "client_id": app_config["client_id"],
+            "client_secret": app_config["client_secret"],
+            "audience": settings.AUTH0_API_AUDIENCE,
+            "grant_type": "client_credentials",
+        }
+        headers = {"content-type": "application/json"}
+
+        response = await client.post(
+            f"https://{settings.AUTH0_DOMAIN}/oauth/token",
+            json=payload,
+            headers=headers,
         )
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={
-            "sub": m2m_data.client_id,
-            "gty": "client-credentials",
-            "azp": m2m_data.client_id,
-            "permissions": m2m_app["permissions"],
-        },
-        expires_delta=access_token_expires,
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail=response.text)
+
+        return response.json()

@@ -8,8 +8,6 @@ class UserLogin(BaseModel):
 
 class M2MLogin(BaseModel):
     app_id: str
-    client_id: str
-    client_secret: str
 
 
 class Token(BaseModel):
