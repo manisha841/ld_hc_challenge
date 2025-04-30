@@ -5,16 +5,6 @@ from datetime import datetime, timedelta
 import httpx
 from passlib.context import CryptContext
 
-# from .config import (
-#     AUTH0_DOMAIN,
-#     AUTH0_API_AUDIENCE,
-#     JWKS_URL,
-#     ALGORITHMS,
-#     SECRET_KEY,
-#     ALGORITHM,
-#     M2M_CLIENT_ID,
-#     ACCESS_TOKEN_EXPIRE_MINUTES
-# )
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 import base64
@@ -36,7 +26,6 @@ security = HTTPBearer()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-# Token creation functions (unchanged)
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     if expires_delta:
@@ -54,9 +43,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
-
-
-# Token verification (unchanged)
 
 
 async def get_auth0_public_key(token: str):
@@ -133,31 +119,26 @@ async def get_current_user(
     """
     token = credentials.credentials
 
-    # First try to verify as local token
     try:
         payload = await verify_local_token(token)
         return {"user_id": payload["sub"], "is_m2m": False}
     except HTTPException:
         pass
 
-    # Then try to verify as Auth0 token
-    # try:
-    payload = await verify_auth0_token(token)
-    print("i am here in verify_auth0_token", payload)
+    try:
+        payload = await verify_auth0_token(token)
+        print("i am here in verify_auth0_token", payload)
 
-    # Check if it's an M2M token
-    if payload.get("gty") == "client-credentials" or M2M_CLIENT_ID in payload.get(
-        "sub", ""
-    ):
-        return {"is_m2m": True, "client_id": payload.get("sub")}
-    else:
-        return {"user_id": payload["sub"], "is_m2m": False}
-    # except HTTPException:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_401_UNAUTHORIZED,
-    #         detail="Invalid token",
-    #         headers={"WWW-Authenticate": "Bearer"}
-    #     )
+        if payload.get("gty") == "client-credentials":
+            return {"is_m2m": True, "client_id": payload.get("sub")}
+        else:
+            return {"user_id": payload["sub"], "is_m2m": False}
+    except HTTPException:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 def verify_owner_access(current_user: dict, owner_id: str) -> None:
