@@ -12,14 +12,15 @@ import base64
 import jwt
 from jwt.exceptions import InvalidTokenError
 
-AUTH0_DOMAIN: str = "dev-g1fkrxywfwaxnmmg.us.auth0.com"
-AUTH0_API_AUDIENCE: str = "https://dev-g1fkrxywfwaxnmmg.us.auth0.com/api/v2/"
-AUTH0_ALGORITHMS: list = ["RS256"]
-JWKS_URL: str = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
-SECRET_KEY: str = "your-secret-key"
-ALGORITHM: str = "HS256"
-M2M_CLIENT_ID: str = "UiCirtVTsAhNUlD1IgUhxBGHx7JYPYr8"
-ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+from app.core.config import settings
+
+AUTH0_DOMAIN = settings.AUTH0_DOMAIN
+AUTH0_API_AUDIENCE = settings.AUTH0_API_AUDIENCE
+AUTH0_ALGORITHMS = settings.AUTH0_ALGORITHMS
+JWKS_URL = settings.JWKS_URL
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 
 security = HTTPBearer()
@@ -127,7 +128,6 @@ async def get_current_user(
 
     try:
         payload = await verify_auth0_token(token)
-        print("i am here in verify_auth0_token", payload)
 
         if payload.get("gty") == "client-credentials":
             return {"is_m2m": True, "client_id": payload.get("sub")}
