@@ -17,7 +17,14 @@
         "id": 5,
         "name": "string",
         "description": "string",
-        "price": 0.0,
+        "price": 13.0,
+        "owner_id": "user1"
+    },
+    "6": {
+        "id": 6,
+        "name": "new",
+        "description": "new",
+        "price": 15.9,
         "owner_id": "user1"
     }
 }
