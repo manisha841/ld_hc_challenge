@@ -109,7 +109,7 @@ async def update_item(
     """Only owners can update items"""
     item = _get_item_or_404(item_id)
     verify_owner_access(current_user, item["owner_id"])
-    return ItemService.update_item(item_id, item_data)
+    return ItemService.update_item(item_id, item_data, item["owner_id"])
 
 
 @router.delete("/items/{item_id}")
@@ -117,4 +117,4 @@ async def delete_item(item_id: int, current_user: dict = Depends(get_current_use
     """Only owners can delete items"""
     item = _get_item_or_404(item_id)
     verify_owner_access(current_user, item["owner_id"])
-    return ItemService.delete_item(item_id)
+    return ItemService.delete_item(item_id, item["owner_id"])

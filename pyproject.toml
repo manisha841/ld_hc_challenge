@@ -16,4 +16,5 @@ dependencies = [
     "pre-commit>=4.2.0",
     "bcrypt>=4.3.0",
     "httpx>=0.28.1",
+    "cryptography>=44.0.2",
 ]

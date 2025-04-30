@@ -4,6 +4,7 @@ from typing import Dict, Optional
 from datetime import datetime, timedelta
 import httpx
 from passlib.context import CryptContext
+
 # from .config import (
 #     AUTH0_DOMAIN,
 #     AUTH0_API_AUDIENCE,
@@ -14,7 +15,9 @@ from passlib.context import CryptContext
 #     M2M_CLIENT_ID,
 #     ACCESS_TOKEN_EXPIRE_MINUTES
 # )
-
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.backends import default_backend
+import base64
 
 import jwt
 from jwt.exceptions import InvalidTokenError
@@ -23,9 +26,8 @@ AUTH0_DOMAIN: str = "dev-g1fkrxywfwaxnmmg.us.auth0.com"
 AUTH0_API_AUDIENCE: str = "https://dev-g1fkrxywfwaxnmmg.us.auth0.com/api/v2/"
 AUTH0_ALGORITHMS: list = ["RS256"]
 JWKS_URL: str = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
-ALGORITHMS: list = ["RS256"]
-SECRET_KEY: str = "secret"
-ALGORITHM: str = "RS256"
+SECRET_KEY: str = "your-secret-key"
+ALGORITHM: str = "HS256"
 M2M_CLIENT_ID: str = "UiCirtVTsAhNUlD1IgUhxBGHx7JYPYr8"
 ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
@@ -55,8 +57,10 @@ def get_password_hash(password: str) -> str:
 
 
 # Token verification (unchanged)
-async def get_auth0_public_key(token: str) -> dict:
-    """Fetch Auth0 public key from JWKS endpoint"""
+
+
+async def get_auth0_public_key(token: str):
+    """Fetch Auth0 public key from JWKS endpoint and properly construct RSA key"""
     async with httpx.AsyncClient() as client:
         try:
             jwks_response = await client.get(JWKS_URL)
@@ -66,13 +70,12 @@ async def get_auth0_public_key(token: str) -> dict:
 
             for key in jwks["keys"]:
                 if key["kid"] == unverified_header["kid"]:
-                    return {
-                        "kty": key["kty"],
-                        "kid": key["kid"],
-                        "use": key["use"],
-                        "n": key["n"],
-                        "e": key["e"],
-                    }
+                    # Properly construct RSA public key
+                    n = int.from_bytes(base64.urlsafe_b64decode(key["n"] + "=="), "big")
+                    e = int.from_bytes(base64.urlsafe_b64decode(key["e"] + "=="), "big")
+                    public_numbers = rsa.RSAPublicNumbers(e, n)
+                    return public_numbers.public_key(default_backend())
+
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Unable to find matching JWK",
@@ -90,23 +93,21 @@ async def verify_auth0_token(token: str) -> dict:
     """Verify Auth0 issued token (either user or M2M)"""
     try:
         rsa_key = await get_auth0_public_key(token)
-        print("i am here in rsa key", rsa_key)
 
         payload = jwt.decode(
             token,
             rsa_key,
-            algorithms=ALGORITHMS,
+            algorithms=AUTH0_ALGORITHMS,
             audience=AUTH0_API_AUDIENCE,
             issuer=f"https://{AUTH0_DOMAIN}/",
         )
-        print("i am here in verify_auth0_token", payload)
         return payload
-    except InvalidTokenError as e:
+    except jwt.JWTError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Auth0 token",
+            detail=f"Invalid Auth0 token: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
-        ) from e
+        )
 
 
 async def verify_local_token(token: str) -> Dict:

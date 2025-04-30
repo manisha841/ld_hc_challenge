@@ -13,8 +13,8 @@
         "owner_id": "user1",
         "price": 100.0
     },
-    "4": {
-        "id": 4,
+    "5": {
+        "id": 5,
         "name": "string",
         "description": "string",
         "price": 0.0,
