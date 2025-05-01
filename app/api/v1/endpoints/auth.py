@@ -38,6 +38,14 @@ async def m2m_login(m2m_data: M2MLogin):
     if not app_config:
         raise HTTPException(status_code=400, detail="Invalid application ID")
 
+    print(app_config)
+    print(settings.AUTH0_DOMAIN)
+    print(settings.AUTH0_API_AUDIENCE)
+    print(settings.AUTH0_ALGORITHMS)
+    print(settings.AUTH0_M2M_CLIENT_ID)
+    print(settings.AUTH0_M2M_CLIENT_SECRET)
+    print(settings.SECRET_KEY)
+
     async with AsyncClient() as client:
         payload = {
             "client_id": app_config["client_id"],

@@ -25,8 +25,8 @@ class Settings(BaseSettings):
     @property
     def M2M_APPLICATIONS(self) -> dict[str, Dict[str, Any]]:
         return {
-            "app1": {
-                "app_id": "app1",
+            "app2": {
+                "app_id": "app2",
                 "client_id": self.AUTH0_M2M_CLIENT_ID,
                 "client_secret": self.AUTH0_M2M_CLIENT_SECRET,
                 "grant_type": "client_credentials",
@@ -41,3 +41,8 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+print(settings.AUTH0_DOMAIN)
+print(settings.AUTH0_API_AUDIENCE)
+print(settings.AUTH0_ALGORITHMS)
+print(settings.AUTH0_M2M_CLIENT_ID)
+print(settings.AUTH0_M2M_CLIENT_SECRET)

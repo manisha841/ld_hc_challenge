@@ -110,35 +110,73 @@ async def verify_local_token(token: str) -> Dict:
         ) from e
 
 
+# async def get_current_user(
+#     credentials: HTTPAuthorizationCredentials = Depends(security),
+# ) -> Dict:
+#     """
+#     Returns:
+#     - For M2M: {'is_m2m': True, 'client_id': '...'}
+#     - For users: {'user_id': '...', 'is_m2m': False}
+#     """
+#     token = credentials.credentials
+
+#     try:
+#         payload = await verify_local_token(token)
+#         return {"user_id": payload["sub"], "is_m2m": False}
+#     except HTTPException:
+#         pass
+
+#     try:
+#         payload = await verify_auth0_token(token)
+
+#         if payload.get("gty") == "client-credentials":
+#             return {"is_m2m": True, "client_id": payload.get("sub")}
+#         else:
+#             return {"user_id": payload["sub"], "is_m2m": False}
+#     except HTTPException:
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Invalid token",
+#             headers={"WWW-Authenticate": "Bearer"},
+#         )
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> Dict:
     """
     Returns:
-    - For M2M: {'is_m2m': True, 'client_id': '...'}
+    - For M2M: {'is_m2m': True, 'client_id': '...', 'scope': '...'}
     - For users: {'user_id': '...', 'is_m2m': False}
     """
     token = credentials.credentials
 
+    # Try local token first
     try:
-        payload = await verify_local_token(token)
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
         return {"user_id": payload["sub"], "is_m2m": False}
-    except HTTPException:
+    except InvalidTokenError:
         pass
 
+    # Then try Auth0 token
     try:
         payload = await verify_auth0_token(token)
 
         if payload.get("gty") == "client-credentials":
-            return {"is_m2m": True, "client_id": payload.get("sub")}
-        else:
-            return {"user_id": payload["sub"], "is_m2m": False}
-    except HTTPException:
+            return {
+                "is_m2m": True,
+                "client_id": payload.get("sub"),
+                "scope": payload.get("scope", ""),
+            }
+        return {"user_id": payload["sub"], "is_m2m": False}
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from e
 
 
 def verify_owner_access(current_user: dict, owner_id: str) -> None:

@@ -1,30 +1,30 @@
 {
     "2": {
         "id": 2,
-        "name": "string",
+        "name": "hi",
         "description": "string",
         "owner_id": "user2",
         "price": 0.0
     },
     "3": {
         "id": 3,
-        "name": "string",
+        "name": "hwwi",
         "description": "string",
         "owner_id": "user1",
         "price": 100.0
     },
     "5": {
         "id": 5,
-        "name": "string",
+        "name": "hi",
         "description": "string",
         "price": 13.0,
         "owner_id": "user1"
     },
     "6": {
         "id": 6,
-        "name": "new",
-        "description": "new",
-        "price": 15.9,
+        "name": "string",
+        "description": "string",
+        "price": 0.0,
         "owner_id": "user1"
     }
 }
