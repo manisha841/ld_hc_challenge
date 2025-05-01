@@ -57,7 +57,6 @@ async def get_auth0_public_key(token: str):
 
             for key in jwks["keys"]:
                 if key["kid"] == unverified_header["kid"]:
-                    # Properly construct RSA public key
                     n = int.from_bytes(base64.urlsafe_b64decode(key["n"] + "=="), "big")
                     e = int.from_bytes(base64.urlsafe_b64decode(key["e"] + "=="), "big")
                     public_numbers = rsa.RSAPublicNumbers(e, n)
@@ -110,37 +109,6 @@ async def verify_local_token(token: str) -> Dict:
         ) from e
 
 
-# async def get_current_user(
-#     credentials: HTTPAuthorizationCredentials = Depends(security),
-# ) -> Dict:
-#     """
-#     Returns:
-#     - For M2M: {'is_m2m': True, 'client_id': '...'}
-#     - For users: {'user_id': '...', 'is_m2m': False}
-#     """
-#     token = credentials.credentials
-
-#     try:
-#         payload = await verify_local_token(token)
-#         return {"user_id": payload["sub"], "is_m2m": False}
-#     except HTTPException:
-#         pass
-
-#     try:
-#         payload = await verify_auth0_token(token)
-
-#         if payload.get("gty") == "client-credentials":
-#             return {"is_m2m": True, "client_id": payload.get("sub")}
-#         else:
-#             return {"user_id": payload["sub"], "is_m2m": False}
-#     except HTTPException:
-#         raise HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="Invalid token",
-#             headers={"WWW-Authenticate": "Bearer"},
-#         )
-
-
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> Dict:
@@ -151,7 +119,6 @@ async def get_current_user(
     """
     token = credentials.credentials
 
-    # Try local token first
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
@@ -160,7 +127,6 @@ async def get_current_user(
     except InvalidTokenError:
         pass
 
-    # Then try Auth0 token
     try:
         payload = await verify_auth0_token(token)
 
