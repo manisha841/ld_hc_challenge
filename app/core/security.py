@@ -118,7 +118,6 @@ async def get_current_user(
     - For users: {'user_id': '...', 'is_m2m': False}
     """
     token = credentials.credentials
-
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
@@ -145,11 +144,18 @@ async def get_current_user(
         ) from e
 
 
-def verify_owner_access(current_user: dict, owner_id: str) -> None:
-    """Verify the current user is the owner of the resource"""
+def check_authorization(
+    current_user: dict, owner_id: str, required_permission: str = None
+) -> None:
+    """Check if user has required permissions or is the item owner."""
+    is_m2m = current_user.get("is_m2m")
 
-    if current_user["user_id"] != owner_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not the owner of this resource",
-        )
+    if is_m2m:
+        if (
+            required_permission
+            and required_permission not in current_user.get("scope", "").split()
+        ):
+            raise HTTPException(status_code=403, detail="Not enough permissions")
+
+    elif owner_id != current_user.get("user_id"):
+        raise HTTPException(status_code=403, detail="Not enough permissions")

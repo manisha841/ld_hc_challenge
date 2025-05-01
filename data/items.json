@@ -1,14 +1,14 @@
 {
     "2": {
         "id": 2,
-        "name": "hi",
+        "name": "dhurba",
         "description": "string",
         "owner_id": "user2",
         "price": 0.0
     },
     "3": {
         "id": 3,
-        "name": "hwwi",
+        "name": "dhurba",
         "description": "string",
         "owner_id": "user1",
         "price": 100.0
@@ -22,6 +22,27 @@
     },
     "6": {
         "id": 6,
+        "name": "string",
+        "description": "string",
+        "price": 0.0,
+        "owner_id": "user1"
+    },
+    "7": {
+        "id": 7,
+        "name": "string",
+        "description": "string",
+        "price": 0.0,
+        "owner_id": "string"
+    },
+    "8": {
+        "id": 8,
+        "name": "string",
+        "description": "string",
+        "price": 0.0,
+        "owner_id": "string"
+    },
+    "9": {
+        "id": 9,
         "name": "string",
         "description": "string",
         "price": 0.0,
