@@ -6,6 +6,7 @@ from typing import Dict
 DATA_DIR = Path("data")
 ITEMS_FILE = DATA_DIR / "items.json"
 USERS_FILE = DATA_DIR / "users.json"
+PRODUCTS_FILE = DATA_DIR / "products.json"
 
 
 def ensure_data_dir():
@@ -51,6 +52,18 @@ def save_users(users: Dict):
     save_json_file(USERS_FILE, users)
 
 
+def load_products() -> Dict:
+    """Load products from JSON file"""
+    ensure_data_dir()
+    return load_json_file(PRODUCTS_FILE)
+
+
+def save_products(products: Dict):
+    """Save products to JSON file"""
+    ensure_data_dir()
+    save_json_file(PRODUCTS_FILE, products)
+
+
 def initialize_data():
     ensure_data_dir()
 
@@ -80,7 +93,6 @@ def initialize_data():
         }
         save_items(default_items)
 
-    # Initialize users if file doesn't exist
     if not USERS_FILE.exists():
         default_users = {
             "user1": {
@@ -95,6 +107,32 @@ def initialize_data():
             },
         }
         save_users(default_users)
+
+    if not PRODUCTS_FILE.exists():
+        default_products = {
+            "1": {
+                "id": 1,
+                "name": "Product 1",
+                "description": "Description 1",
+                "owner_id": "user1",
+                "price": 10.99,
+            },
+            "2": {
+                "id": 2,
+                "name": "Product 2",
+                "description": "Description 2",
+                "owner_id": "user2",
+                "price": 20.99,
+            },
+            "3": {
+                "id": 3,
+                "name": "Product 3",
+                "description": "Description 3",
+                "owner_id": "user1",
+                "price": 30.99,
+            },
+        }
+        save_products(default_products)
 
 
 # Initialize data on module import

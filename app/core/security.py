@@ -147,11 +147,7 @@ async def get_current_user(
 
 def verify_owner_access(current_user: dict, owner_id: str) -> None:
     """Verify the current user is the owner of the resource"""
-    if current_user["is_m2m"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="M2M clients cannot perform owner operations",
-        )
+
     if current_user["user_id"] != owner_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

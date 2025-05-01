@@ -13,16 +13,18 @@ def _get_item_or_404(item_id: int) -> dict:
     raise HTTPException(status_code=404, detail="Item not found")
 
 
-@router.post("/items", status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_item(
     item_data: ItemCreate, current_user: dict = Depends(get_current_user)
 ):
     """Only owners can create items for themselves"""
+    if current_user.get("is_m2m"):
+        raise HTTPException(status_code=403, detail="M2M not allowed")
     verify_owner_access(current_user, item_data.owner_id)
     return ItemService.create_item(item_data=item_data, owner_id=item_data.owner_id)
 
 
-@router.get("/items/{item_id}")
+@router.get("/{item_id}")
 async def read_item(
     item_id: int,
     current_user: dict = Depends(get_current_user),
@@ -42,7 +44,7 @@ async def read_item(
     return item
 
 
-@router.put("/items/{item_id}")
+@router.put("/{item_id}")
 async def update_item(
     item_id: int,
     item_data: ItemUpdate,
@@ -63,9 +65,11 @@ async def update_item(
     return ItemService.update_item(item_id, item_data, item["owner_id"])
 
 
-@router.delete("/items/{item_id}")
+@router.delete("/{item_id}")
 async def delete_item(item_id: int, current_user: dict = Depends(get_current_user)):
     """Only owners can delete items (M2M not allowed)"""
     item = _get_item_or_404(item_id)
+    if current_user.get("is_m2m"):
+        raise HTTPException(status_code=403, detail="M2M not allowed")
     verify_owner_access(current_user, item["owner_id"])
     return ItemService.delete_item(item_id, item["owner_id"])
