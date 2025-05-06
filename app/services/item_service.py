@@ -1,86 +1,56 @@
-from typing import Optional, Dict
-from fastapi import HTTPException
-from utils import load_items, save_items
-from app.schemas.item import ItemUpdate, ItemCreate
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+
+from app.models.item import Item
+from app.schemas.item import ItemCreate, ItemUpdate
 
 
 class ItemService:
     @staticmethod
-    def get_item(item_id: int) -> Optional[Dict]:
-        items = load_items()
-        return items.get(str(item_id))
+    async def get_item(db: AsyncSession, item_id: int) -> Item | None:
+        result = await db.execute(
+            select(Item).where(Item.id == item_id).options(selectinload(Item.owner))
+        )
+        return result.scalar_one_or_none()
 
     @staticmethod
-    def create_item(item_data: ItemCreate, owner_id: str) -> Dict:
-        items = load_items()
-
-        new_id = max((int(k) for k in items.keys()), default=0) + 1
-
-        new_item = {
-            "id": new_id,
-            "name": item_data.name,
-            "description": item_data.description,
-            "price": item_data.price,
-            "owner_id": owner_id,
-        }
-
-        items[str(new_id)] = new_item
-        save_items(items)
-
-        return new_item
+    async def create_item(
+        db: AsyncSession, item_data: ItemCreate, owner_id: str
+    ) -> Item:
+        db_item = Item(
+            name=item_data.name,
+            description=item_data.description,
+            price=item_data.price,
+            owner_id=owner_id,
+        )
+        db.add(db_item)
+        await db.commit()
+        await db.refresh(db_item)
+        return db_item
 
     @staticmethod
-    def update_item(
-        item_id: int, item_data: ItemUpdate, owner_id: str, is_m2m: bool = False
-    ) -> Dict:
-        items = load_items()
-        item_key = str(item_id)
+    async def update_item(
+        db: AsyncSession, item_id: int, item_data: ItemUpdate, owner_id: str
+    ) -> Item:
+        item = await ItemService.get_item(db, item_id)
+        if not item:
+            return None
 
-        if item_key not in items:
-            raise HTTPException(status_code=404, detail="Item not found")
+        update_data = item_data.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(item, field, value)
 
-        existing_item = items[item_key]
-
-        if not is_m2m and existing_item["owner_id"] != owner_id:
-            raise HTTPException(status_code=403, detail="Not enough permissions")
-
-        updates = {}
-        if item_data.name is not None:
-            updates["name"] = item_data.name
-        if item_data.description is not None:
-            updates["description"] = item_data.description
-        if item_data.price is not None:
-            updates["price"] = item_data.price
-        if item_data.owner_id is not None:
-            updates["owner_id"] = item_data.owner_id
-
-        updated_item = {**existing_item, **updates}
-
-        ItemUpdate(**updated_item)
-
-        items[item_key] = updated_item
-        save_items(items)
-
-        return updated_item
+        await db.commit()
+        await db.refresh(item)
+        return item
 
     @staticmethod
-    def delete_item(item_id: int, owner_id: str, is_m2m: bool = False) -> Dict:
-        items = load_items()
-        item_key = str(item_id)
+    async def delete_item(db: AsyncSession, item_id: int, owner_id: str) -> bool:
+        item = await ItemService.get_item(db, item_id)
+        if not item:
+            return False
 
-        if item_key not in items:
-            raise HTTPException(status_code=404, detail="Item not found")
-
-        existing_item = items[item_key]
-
-        if not is_m2m and existing_item["owner_id"] != owner_id:
-            raise HTTPException(status_code=403, detail="Not enough permissions")
-
-        del items[item_key]
-        save_items(items)
-
-        return {
-            "message": "Item deleted successfully",
-            "item_id": item_id,
-            "name": existing_item["name"],
-        }
+        await db.delete(item)
+        await db.commit()
+        return True

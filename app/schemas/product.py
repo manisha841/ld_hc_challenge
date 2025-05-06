@@ -1,23 +1,23 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
-class Product(BaseModel):
-    id: int
+class ProductBase(BaseModel):
     name: str
     description: str | None = None
+    price: float = 0.0
+
+
+class ProductCreate(ProductBase):
     owner_id: str
-    price: float
 
 
-class ProductCreate(BaseModel):
-    name: str
-    owner_id: str
-    description: str | None = None
-    price: float
-
-
-class ProductUpdate(BaseModel):
+class ProductUpdate(ProductBase):
     name: str | None = None
-    description: str | None = None
     owner_id: str | None = None
-    price: float | None = None
+
+
+class ProductResponse(ProductBase):
+    id: int
+    owner_id: str
+
+    model_config = ConfigDict(from_attributes=True)
