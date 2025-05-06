@@ -19,13 +19,11 @@ router = APIRouter()
 @router.post("/register", response_model=UserResponse)
 async def register_user(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     """Register a new user"""
-    # Check if user already exists
     if await UserService.get_user_by_email(db, user_data.email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
         )
 
-    # Create new user
     user = await UserService.create_user(db, user_data)
     return user
 
@@ -47,7 +45,7 @@ async def login(
 
     access_token_expires = timedelta(minutes=30)
     access_token = create_access_token(
-        data={"sub": user.id}, expires_delta=access_token_expires
+        data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 

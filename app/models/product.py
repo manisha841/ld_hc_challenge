@@ -11,6 +11,6 @@ class Product(Base):
     name = Column(String, nullable=False)
     description = Column(String)
     price = Column(Float, default=0.0)
-    owner_id = Column(String, ForeignKey("users.id"), nullable=False)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     owner = relationship("User", back_populates="products")

@@ -138,7 +138,17 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        user = await UserService.get_user(db, user_id)
+        # Convert user_id to integer since that's what our database expects
+        try:
+            user_id_int = int(user_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid user ID format",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        user = await UserService.get_user(db, user_id_int)
         if user is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

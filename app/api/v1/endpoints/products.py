@@ -9,9 +9,7 @@ from app.schemas.product import ProductUpdate, ProductCreate, ProductResponse
 router = APIRouter()
 
 
-@router.post(
-    "/products/", status_code=status.HTTP_201_CREATED, response_model=ProductResponse
-)
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=ProductResponse)
 async def create_product(
     product_data: ProductCreate,
     current_user: dict = Depends(get_current_user),
@@ -22,7 +20,7 @@ async def create_product(
     return await ProductService.create_product(db, product_data, product_data.owner_id)
 
 
-@router.get("/products/{product_id}", response_model=ProductResponse)
+@router.get("/{product_id}", response_model=ProductResponse)
 async def read_product(
     product_id: int,
     current_user: dict = Depends(get_current_user),
@@ -37,7 +35,7 @@ async def read_product(
     return product
 
 
-@router.put("/products/{product_id}", response_model=ProductResponse)
+@router.put("/{product_id}", response_model=ProductResponse)
 async def update_product(
     product_id: int,
     product_data: ProductUpdate,
@@ -58,7 +56,7 @@ async def update_product(
     return updated_product
 
 
-@router.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_product(
     product_id: int,
     current_user: dict = Depends(get_current_user),

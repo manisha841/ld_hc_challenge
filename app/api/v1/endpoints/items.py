@@ -9,9 +9,7 @@ from app.schemas.item import ItemUpdate, ItemCreate, ItemResponse
 router = APIRouter()
 
 
-@router.post(
-    "/items/", status_code=status.HTTP_201_CREATED, response_model=ItemResponse
-)
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=ItemResponse)
 async def create_item(
     item_data: ItemCreate,
     current_user: dict = Depends(get_current_user),
@@ -22,7 +20,7 @@ async def create_item(
     return await ItemService.create_item(db, item_data, item_data.owner_id)
 
 
-@router.get("/items/{item_id}", response_model=ItemResponse)
+@router.get("/{item_id}", response_model=ItemResponse)
 async def read_item(
     item_id: int,
     current_user: dict = Depends(get_current_user),
@@ -37,7 +35,7 @@ async def read_item(
     return item
 
 
-@router.put("/items/{item_id}", response_model=ItemResponse)
+@router.put("/{item_id}", response_model=ItemResponse)
 async def update_item(
     item_id: int,
     item_data: ItemUpdate,
@@ -56,7 +54,7 @@ async def update_item(
     return updated_item
 
 
-@router.delete("/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_item(
     item_id: int,
     current_user: dict = Depends(get_current_user),
