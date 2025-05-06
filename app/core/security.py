@@ -1,18 +1,23 @@
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import Dict, Optional
+from fastapi.security import (
+    HTTPBearer,
+    HTTPAuthorizationCredentials,
+    OAuth2PasswordBearer,
+)
+from typing import Dict
 from datetime import datetime, timedelta
 import httpx
 from passlib.context import CryptContext
-
+from sqlalchemy.ext.asyncio import AsyncSession
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 import base64
 
-import jwt
-from jwt.exceptions import InvalidTokenError
-
 from app.core.config import settings
+from app.core.database import get_db
+from app.services.user_service import UserService
+from jwt.exceptions import InvalidTokenError
+import jwt
 
 AUTH0_DOMAIN = settings.AUTH0_DOMAIN
 AUTH0_API_AUDIENCE = settings.AUTH0_API_AUDIENCE
@@ -22,19 +27,21 @@ SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
-
 security = HTTPBearer()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.now() + expires_delta
+        expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.utcnow() + timedelta(minutes=15)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(
+        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+    )
     return encoded_jwt
 
 
@@ -88,7 +95,7 @@ async def verify_auth0_token(token: str) -> dict:
             issuer=f"https://{AUTH0_DOMAIN}/",
         )
         return payload
-    except jwt.JWTError as e:
+    except jwt.PyJWTError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid Auth0 token: {str(e)}",
@@ -111,51 +118,70 @@ async def verify_local_token(token: str) -> Dict:
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db),
 ) -> Dict:
     """
     Returns:
     - For M2M: {'is_m2m': True, 'client_id': '...', 'scope': '...'}
-    - For users: {'user_id': '...', 'is_m2m': False}
+    - For users: {'id': '...', 'email': '...', 'is_m2m': False}
     """
     token = credentials.credentials
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
-        return {"user_id": payload["sub"], "is_m2m": False}
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        user = await UserService.get_user(db, user_id)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return {"id": user.id, "email": user.email, "is_m2m": False}
     except InvalidTokenError:
-        pass
-
-    try:
-        payload = await verify_auth0_token(token)
-
-        if payload.get("gty") == "client-credentials":
+        try:
+            payload = await verify_auth0_token(token)
+            if payload.get("gty") == "client-credentials":
+                return {
+                    "is_m2m": True,
+                    "client_id": payload.get("sub"),
+                    "scope": payload.get("scope", ""),
+                }
             return {
-                "is_m2m": True,
-                "client_id": payload.get("sub"),
-                "scope": payload.get("scope", ""),
+                "id": payload["sub"],
+                "email": payload.get("email"),
+                "is_m2m": False,
             }
-        return {"user_id": payload["sub"], "is_m2m": False}
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from e
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from e
 
 
 def check_authorization(
-    current_user: dict, owner_id: str, required_permission: str = None
+    current_user: dict, resource_owner_id: str, required_scope: str
 ) -> None:
-    """Check if user has required permissions or is the item owner."""
-    is_m2m = current_user.get("is_m2m")
+    """Check if the current user has permission to access the resource."""
+    is_m2m = current_user.get("is_m2m", False)
 
     if is_m2m:
-        if (
-            required_permission
-            and required_permission not in current_user.get("scope", "").split()
-        ):
-            raise HTTPException(status_code=403, detail="Not enough permissions")
-
-    elif owner_id != current_user.get("user_id"):
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+        if required_scope not in current_user.get("scope", "").split():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions",
+            )
+    elif current_user["id"] != resource_owner_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions",
+        )

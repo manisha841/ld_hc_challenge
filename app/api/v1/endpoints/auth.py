@@ -2,21 +2,42 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db
 from app.core.security import (
     create_access_token,
-    ACCESS_TOKEN_EXPIRE_MINUTES,
 )
 from app.core.config import settings
 from app.services.user_service import UserService
 from app.schemas.auth import M2MLogin
+from app.schemas.user import UserCreate, UserResponse, Token
 
 router = APIRouter()
 
 
-@router.post("/login")
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = UserService.verify_user_credentials(form_data.username, form_data.password)
+@router.post("/register", response_model=UserResponse)
+async def register_user(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
+    """Register a new user"""
+    # Check if user already exists
+    if await UserService.get_user_by_email(db, user_data.email):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
+        )
 
+    # Create new user
+    user = await UserService.create_user(db, user_data)
+    return user
+
+
+@router.post("/token", response_model=Token)
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)
+):
+    """Login user and return access token"""
+    user = await UserService.authenticate_user(
+        db, form_data.username, form_data.password
+    )
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -24,10 +45,9 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(minutes=30)
     access_token = create_access_token(
-        data={"sub": user["id"], "scopes": form_data.scopes},
-        expires_delta=access_token_expires,
+        data={"sub": user.id}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
